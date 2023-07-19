@@ -318,7 +318,7 @@
 </li>
 <li><p>GeGLU Activation Function：FFN的中间维数设置为嵌入维数的4倍，这与PaLM的做法一致</p>
 </li>
-<li><p>Relative Position Bias (RPB，相对位置偏差)：添加到自注意力层中的<a href="mailto:&#x71;&#64;&#x6b;&#x2e;&#84;">&#x71;&#64;&#x6b;&#x2e;&#84;</a>中，文本和音频引入1D RPB，图像引入2D RPB。在预训练阶段，不同自注意层的相对位置偏差是共享的。在微调阶段，解耦每个自注意层的相对位置偏差，并让它们继承预训练的相对偏差的权重。</p>
+<li><p>Relative Position Bias (RPB，相对位置偏差)：添加到自注意力层中的<a href="mailto:&#113;&#x40;&#x6b;&#x2e;&#x54;">&#113;&#x40;&#x6b;&#x2e;&#x54;</a>中，文本和音频引入1D RPB，图像引入2D RPB。在预训练阶段，不同自注意层的相对位置偏差是共享的。在微调阶段，解耦每个自注意层的相对位置偏差，并让它们继承预训练的相对偏差的权重。</p>
 <p><strong>EVA02代码中有RPB的代码实现</strong></p>
 <p><a target="_blank" rel="noopener" href="https://www.zhihu.com/tardis/zm/art/577855860?source_id=1005">RPB解读</a></p>
 </li>
@@ -418,6 +418,12 @@
                 <div class="post-prevnext my-3">
                   <article class="post-prev col-6">
                     
+                    
+                      <a href="/2023/07/19/%E8%AE%BA%E6%96%87%E7%AC%94%E8%AE%B03-LLaVA/" title="论文笔记3 - LLaVA">
+                        <i class="iconfont icon-arrowleft"></i>
+                        <span class="hidden-mobile">论文笔记3 - LLaVA</span>
+                        <span class="visible-mobile">Previous</span>
+                      </a>
                     
                   </article>
                   <article class="post-next col-6">

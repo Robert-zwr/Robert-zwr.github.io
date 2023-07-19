@@ -16,21 +16,26 @@
   <meta name="author" content="Robert-zwr">
   <meta name="keywords" content="">
   
-    <meta name="description" content="Welcome to Hexo! This is your very first post. Check documentation for more info. If you get any problems when using Hexo, you can find the answer in troubleshooting or you can ask me on GitHub. Quick">
+    <meta name="description" content="LLaVA: Large Language and Vision Assistant概述结合了CLIP vision encoder与LLaMA的多模态大模型，具有与GPT-4相似的能力。 数据集生成数据集的形式为图片和针对该图片的多组文本描述（问题-答案对）。  图片：来自COCO数据集  图片的文本描述  问题：对图片内容的提问，在预先设定好的问题表中抽取得到 答案：不需要人工标注，而是使用C">
 <meta property="og:type" content="article">
-<meta property="og:title" content="Hello World">
-<meta property="og:url" content="https://robert-zwr.github.io/2023/07/12/hello-world/index.html">
+<meta property="og:title" content="论文笔记3 - LLaVA">
+<meta property="og:url" content="https://robert-zwr.github.io/2023/07/19/%E8%AE%BA%E6%96%87%E7%AC%94%E8%AE%B03-LLaVA/index.html">
 <meta property="og:site_name" content="Robert-zwr&#39;s Blog">
-<meta property="og:description" content="Welcome to Hexo! This is your very first post. Check documentation for more info. If you get any problems when using Hexo, you can find the answer in troubleshooting or you can ask me on GitHub. Quick">
+<meta property="og:description" content="LLaVA: Large Language and Vision Assistant概述结合了CLIP vision encoder与LLaMA的多模态大模型，具有与GPT-4相似的能力。 数据集生成数据集的形式为图片和针对该图片的多组文本描述（问题-答案对）。  图片：来自COCO数据集  图片的文本描述  问题：对图片内容的提问，在预先设定好的问题表中抽取得到 答案：不需要人工标注，而是使用C">
 <meta property="og:locale" content="en_US">
-<meta property="article:published_time" content="2023-07-12T07:52:24.910Z">
-<meta property="article:modified_time" content="2023-07-12T07:52:24.910Z">
+<meta property="og:image" content="https://s2.loli.net/2023/07/19/tePYxGLwcAmbyTS.png">
+<meta property="og:image" content="https://llava-vl.github.io/images/llava_arch.png">
+<meta property="article:published_time" content="2023-07-19T09:20:04.000Z">
+<meta property="article:modified_time" content="2023-07-19T12:45:55.198Z">
 <meta property="article:author" content="Robert-zwr">
+<meta property="article:tag" content="多模态">
+<meta property="article:tag" content="GPT-4">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://s2.loli.net/2023/07/19/tePYxGLwcAmbyTS.png">
   
   
   
-  <title>Hello World - Robert-zwr&#39;s Blog</title>
+  <title>论文笔记3 - LLaVA - Robert-zwr&#39;s Blog</title>
 
   <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
 
@@ -196,7 +201,7 @@
       <div class="banner-text text-center fade-in-up">
         <div class="h2">
           
-            <span id="subtitle" data-typed-text="Hello World"></span>
+            <span id="subtitle" data-typed-text="论文笔记3 - LLaVA"></span>
           
         </div>
 
@@ -207,8 +212,8 @@
     
       <span class="post-meta">
         <i class="iconfont icon-date-fill" aria-hidden="true"></i>
-        <time datetime="2023-07-12 15:52" pubdate>
-          July 12, 2023 pm
+        <time datetime="2023-07-19 17:20" pubdate>
+          July 19, 2023 pm
         </time>
       </span>
     
@@ -219,7 +224,7 @@
       <span class="post-meta mr-2">
         <i class="iconfont icon-chart"></i>
         
-          367 words
+          2.1k words
         
       </span>
     
@@ -230,7 +235,7 @@
         
         
         
-          4 mins
+          18 mins
         
       </span>
     
@@ -267,24 +272,48 @@
       <div class="container nopadding-x-md" id="board-ctn">
         <div id="board">
           <article class="post-content mx-auto">
-            <h1 id="seo-header">Hello World</h1>
+            <h1 id="seo-header">论文笔记3 - LLaVA</h1>
             
             
               <div class="markdown-body">
                 
-                <p>Welcome to <a target="_blank" rel="noopener" href="https://hexo.io/">Hexo</a>! This is your very first post. Check <a target="_blank" rel="noopener" href="https://hexo.io/docs/">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a target="_blank" rel="noopener" href="https://hexo.io/docs/troubleshooting.html">troubleshooting</a> or you can ask me on <a target="_blank" rel="noopener" href="https://github.com/hexojs/hexo/issues">GitHub</a>.</p>
-<h2 id="Quick-Start"><a href="#Quick-Start" class="headerlink" title="Quick Start"></a>Quick Start</h2><h3 id="Create-a-new-post"><a href="#Create-a-new-post" class="headerlink" title="Create a new post"></a>Create a new post</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs bash">$ hexo new <span class="hljs-string">&quot;My New Post&quot;</span><br></code></pre></td></tr></table></figure>
+                <h1 id="LLaVA-Large-Language-and-Vision-Assistant"><a href="#LLaVA-Large-Language-and-Vision-Assistant" class="headerlink" title="LLaVA: Large Language and Vision Assistant"></a>LLaVA: Large Language and Vision Assistant</h1><h2 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h2><p>结合了CLIP vision encoder与LLaMA的多模态大模型，具有与GPT-4相似的能力。</p>
+<h2 id="数据集生成"><a href="#数据集生成" class="headerlink" title="数据集生成"></a>数据集生成</h2><p>数据集的形式为图片和针对该图片的多组文本描述（问题-答案对）。</p>
+<ul>
+<li><p>图片：来自COCO数据集</p>
+</li>
+<li><p>图片的文本描述</p>
+<ul>
+<li>问题：对图片内容的提问，在预先设定好的问题表中抽取得到</li>
+<li>答案：不需要人工标注，而是使用ChatGPT&#x2F;GPT-4生成。由于现有的ChatGPT&#x2F;GPT-4不接受图像输入，图像被转化为<strong>captions</strong>+<strong>bounding boxes</strong>的描述方式作为输入。</li>
+</ul>
+<img src="https://s2.loli.net/2023/07/19/tePYxGLwcAmbyTS.png" srcset="/img/loading.gif" lazyload alt="image.png" style="zoom:80%;" /></li>
+</ul>
+<h2 id="模型结构"><a href="#模型结构" class="headerlink" title="模型结构"></a>模型结构</h2><img src="https://llava-vl.github.io/images/llava_arch.png" srcset="/img/loading.gif" lazyload alt="img" style="zoom: 50%;" />
 
-<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/writing.html">Writing</a></p>
-<h3 id="Run-server"><a href="#Run-server" class="headerlink" title="Run server"></a>Run server</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs bash">$ hexo server<br></code></pre></td></tr></table></figure>
-
-<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/server.html">Server</a></p>
-<h3 id="Generate-static-files"><a href="#Generate-static-files" class="headerlink" title="Generate static files"></a>Generate static files</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs bash">$ hexo generate<br></code></pre></td></tr></table></figure>
-
-<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/generating.html">Generating</a></p>
-<h3 id="Deploy-to-remote-sites"><a href="#Deploy-to-remote-sites" class="headerlink" title="Deploy to remote sites"></a>Deploy to remote sites</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs bash">$ hexo deploy<br></code></pre></td></tr></table></figure>
-
-<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/one-command-deployment.html">Deployment</a></p>
+<ul>
+<li><p>Vision Encoder：来自CLIP，将图像$X_V$映射到图像特征$Z_V$</p>
+</li>
+<li><p>Projection：仅使用一个投射矩阵W将图像特征$Z_V$映射到语义空间$H_V$，与问题的language embedding（$H_q$）对齐</p>
+<p>作者还探讨了其他可能的连接图像和语言表征的方法：</p>
+<ul>
+<li><strong>gated cross-attention</strong> in Flamingo </li>
+<li><strong>Q-former</strong> in BLIP-2 </li>
+<li><strong>SAM</strong></li>
+</ul>
+</li>
+<li><p>LLM：预测问题答案</p>
+</li>
+</ul>
+<h2 id="训练策略"><a href="#训练策略" class="headerlink" title="训练策略"></a>训练策略</h2><p>训练时，数据集以如下形式输入模型：<br>$$<br>\begin{aligned}<br>&amp; \mathbf{X}<em>{\text {system-message }}\textcolor{green}{\langle\mathrm{STOP}\rangle} \backslash \mathrm{n} \<br>&amp; \text { Human : } \mathbf{X}</em>{\text {instruct }}^1\textcolor{green}{\langle\mathrm{STOP}\rangle} \backslash \mathrm{n} \text { Assistant: } \textcolor{green}{\mathbf{X}<em>{\mathrm{a}}^1\langle\mathrm{STOP}\rangle} \backslash \mathrm{n} \<br>&amp; \text { Human : } \mathbf{X}</em>{\text {instruct }}^2\textcolor{green}{\langle\mathrm{STOP}\rangle} \backslash \mathrm{n} \text { Assistant: } \textcolor{green}{\mathbf{X}_{\mathrm{a}}^2\langle\mathrm{STOP}\rangle} \backslash \mathrm{n} \ldots<br>\end{aligned}<br>$$</p>
+<p>其中：</p>
+<p>$\mathbf{X}_{\text {system-message }}$ &#x3D;  <em>A chat between a curious human and an artificial intelligence assistant. The assistant gives helpful, detailed, and 								polite answers to the human’s questions.</em> </p>
+<p>​	&lt;STOP&gt;		 &#x3D; <em>###</em></p>
+<p>image embedding在对话的开始被输入，此后$\mathbf{X}<em>{\text {instruct}}$均为language embedding：<br>$$<br>\mathbf{X}</em>{\text {instruct }}^t&#x3D; \begin{cases}\text { Random choose }\left[\mathbf{X}<em>{\mathrm{q}}^1, \mathbf{X}</em>{\mathrm{v}}\right] \text { or }\left[\mathbf{X}<em>{\mathrm{v}}, \mathbf{X}</em>{\mathrm{q}}^1\right], &amp; \text { the first turn } t&#x3D;1 \ \mathbf{X}<em>{\mathrm{q}}^t, &amp; \text { the remaining turns } t&gt;1\end{cases}<br>$$<br>训练目标是：将输出文本x最大化似然到真值$X_a$，模型在预测时能看到之前的全部图像与文本：<br>$$<br>p\left(\mathbf{X}</em>{\mathrm{a}} \mid \mathbf{X}<em>{\mathrm{v}}, \mathbf{X}</em>{\text {instruet }}\right)&#x3D;\prod_{i&#x3D;1}^L p_{\boldsymbol{\theta}}\left(x_i \mid \mathbf{X}<em>{\mathrm{v}}, \mathbf{X}</em>{\text {instruct },&lt;i}, \mathbf{X}_{\mathrm{a},&lt;i}\right)<br>$$<br>采用两阶段的训练过程：</p>
+<ul>
+<li>Pre-training for Feature Alignment：冻结Vision Encoder和LLM，只调整W的参数，要求模型对图像做一些简单的描述。这个阶段可以理解为<strong>为固定参数的LLM训练一个兼容的visual tokenizer</strong></li>
+<li>Fine-tuning End-to-End:仅保持Vision Encoder的参数不变，训练W和LLM的参数，针对特定任务微调。</li>
+</ul>
 
                 
               </div>
@@ -294,6 +323,15 @@
               <div class="post-metas my-3">
   
   
+    <div class="post-meta">
+      <i class="iconfont icon-tags"></i>
+      
+        <a href="/tags/%E5%A4%9A%E6%A8%A1%E6%80%81/" class="print-no-link">#多模态</a>
+      
+        <a href="/tags/GPT-4/" class="print-no-link">#GPT-4</a>
+      
+    </div>
+  
 </div>
 
 
@@ -302,8 +340,8 @@
 
   <div class="license-box my-3">
     <div class="license-title">
-      <div>Hello World</div>
-      <div>https://robert-zwr.github.io/2023/07/12/hello-world/</div>
+      <div>论文笔记3 - LLaVA</div>
+      <div>https://robert-zwr.github.io/2023/07/19/论文笔记3-LLaVA/</div>
     </div>
     <div class="license-meta">
       
@@ -315,7 +353,7 @@
       
         <div class="license-meta-item license-meta-date">
           <div>Posted on</div>
-          <div>July 12, 2023</div>
+          <div>July 19, 2023</div>
         </div>
       
       
@@ -347,15 +385,15 @@
                   <article class="post-prev col-6">
                     
                     
-                      <a href="/2023/07/12/%E8%AE%BA%E6%96%87%E7%AC%94%E8%AE%B01-VLMo/" title="论文笔记1 - VLMo">
-                        <i class="iconfont icon-arrowleft"></i>
-                        <span class="hidden-mobile">论文笔记1 - VLMo</span>
-                        <span class="visible-mobile">Previous</span>
-                      </a>
-                    
                   </article>
                   <article class="post-next col-6">
                     
+                    
+                      <a href="/2023/07/16/%E8%AE%BA%E6%96%87%E7%AC%94%E8%AE%B02-ONE-PEACE/" title="论文笔记2 - ONE-PEACE">
+                        <span class="hidden-mobile">论文笔记2 - ONE-PEACE</span>
+                        <span class="visible-mobile">Next</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
                     
                   </article>
                 </div>
