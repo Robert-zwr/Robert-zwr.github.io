@@ -16,25 +16,26 @@
   <meta name="author" content="Robert-zwr">
   <meta name="keywords" content="">
   
-    <meta name="description" content="Flamingo: a Visual Language Model for Few-Shot Learning 概述  最先进的few-shot视觉问答注意力网络，接受灵活的图像&#x2F;文本输入 利用cross attention实现图像压缩与图文信息交互 通过设置prompt，大模型+少样本打败精调。   模型结构 怎样将图像和文本一起输入LLM？ 将图像数据从2D转化为1D，以">
+    <meta name="description" content="自定义Triton算子，需要在实现反向传播时给出相应的梯度计算方法，梯度表达式的推导过程涉及矩阵求导的运算法则。 下面以flash-linear-attention为例，介绍一下flash-linear-attention的实现方法，顺便推导一下梯度的计算过程。 Forward  标准attention:  train：并行，高效 \[ \begin{align*} \rm Q,">
 <meta property="og:type" content="article">
-<meta property="og:title" content="论文笔记4 - Flamingo">
-<meta property="og:url" content="https://robert-zwr.github.io/2023/07/19/%E8%AE%BA%E6%96%87%E7%AC%94%E8%AE%B04-Flamingo/index.html">
+<meta property="og:title" content="矩阵求导术">
+<meta property="og:url" content="https://robert-zwr.github.io/2024/06/05/%E7%9F%A9%E9%98%B5%E6%B1%82%E5%AF%BC%E6%9C%AF/index.html">
 <meta property="og:site_name" content="Robert-zwr&#39;s Blog">
-<meta property="og:description" content="Flamingo: a Visual Language Model for Few-Shot Learning 概述  最先进的few-shot视觉问答注意力网络，接受灵活的图像&#x2F;文本输入 利用cross attention实现图像压缩与图文信息交互 通过设置prompt，大模型+少样本打败精调。   模型结构 怎样将图像和文本一起输入LLM？ 将图像数据从2D转化为1D，以">
+<meta property="og:description" content="自定义Triton算子，需要在实现反向传播时给出相应的梯度计算方法，梯度表达式的推导过程涉及矩阵求导的运算法则。 下面以flash-linear-attention为例，介绍一下flash-linear-attention的实现方法，顺便推导一下梯度的计算过程。 Forward  标准attention:  train：并行，高效 \[ \begin{align*} \rm Q,">
 <meta property="og:locale" content="en_US">
-<meta property="og:image" content="https://s2.loli.net/2023/07/22/5x8X2ECartFBiSk.png">
-<meta property="article:published_time" content="2023-07-19T12:48:11.000Z">
-<meta property="article:modified_time" content="2023-07-22T10:10:35.934Z">
+<meta property="og:image" content="https://s2.loli.net/2024/06/06/y9MPioW3N1UsndO.png">
+<meta property="og:image" content="https://s2.loli.net/2024/06/06/BfCuxnYrzpHZ4JV.png">
+<meta property="og:image" content="https://s2.loli.net/2024/06/06/CPlvUVz6GnQhuas.png">
+<meta property="article:published_time" content="2024-06-05T12:57:48.000Z">
+<meta property="article:modified_time" content="2024-06-06T13:05:17.511Z">
 <meta property="article:author" content="Robert-zwr">
-<meta property="article:tag" content="多模态">
-<meta property="article:tag" content="gpt-4">
+<meta property="article:tag" content="Triton">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://s2.loli.net/2023/07/22/5x8X2ECartFBiSk.png">
+<meta name="twitter:image" content="https://s2.loli.net/2024/06/06/y9MPioW3N1UsndO.png">
   
   
   
-  <title>论文笔记4 - Flamingo - Robert-zwr&#39;s Blog</title>
+  <title>矩阵求导术 - Robert-zwr&#39;s Blog</title>
 
   <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
 
@@ -200,7 +201,7 @@
       <div class="banner-text text-center fade-in-up">
         <div class="h2">
           
-            <span id="subtitle" data-typed-text="论文笔记4 - Flamingo"></span>
+            <span id="subtitle" data-typed-text="矩阵求导术"></span>
           
         </div>
 
@@ -211,8 +212,8 @@
     
       <span class="post-meta">
         <i class="iconfont icon-date-fill" aria-hidden="true"></i>
-        <time datetime="2023-07-19 20:48" pubdate>
-          July 19, 2023 pm
+        <time datetime="2024-06-05 20:57" pubdate>
+          June 5, 2024 pm
         </time>
       </span>
     
@@ -223,7 +224,7 @@
       <span class="post-meta mr-2">
         <i class="iconfont icon-chart"></i>
         
-          961 words
+          3.6k words
         
       </span>
     
@@ -234,7 +235,7 @@
         
         
         
-          9 mins
+          31 mins
         
       </span>
     
@@ -271,50 +272,175 @@
       <div class="container nopadding-x-md" id="board-ctn">
         <div id="board">
           <article class="post-content mx-auto">
-            <h1 id="seo-header">论文笔记4 - Flamingo</h1>
+            <h1 id="seo-header">矩阵求导术</h1>
             
             
               <div class="markdown-body">
                 
-                <h1
-id="flamingo-a-visual-language-model-for-few-shot-learning">Flamingo: a
-Visual Language Model for Few-Shot Learning</h1>
-<h2 id="概述">概述</h2>
+                <p>自定义Triton算子，需要在实现反向传播时给出相应的梯度计算方法，梯度表达式的推导过程涉及矩阵求导的运算法则。</p>
+<p>下面以<strong><a
+target="_blank" rel="noopener" href="https://github.com/sustcsonglin/flash-linear-attention">flash-linear-attention</a></strong>为例，介绍一下flash-linear-attention的实现方法，顺便推导一下梯度的计算过程。</p>
+<h2 id="forward">Forward</h2>
 <ul>
-<li>最先进的few-shot视觉问答注意力网络，接受灵活的图像/文本输入</li>
-<li>利用cross attention实现图像压缩与图文信息交互</li>
-<li>通过设置prompt，大模型+少样本打败精调。</li>
+<li><p><strong>标准attention:</strong></p>
+<ul>
+<li><p>train：并行，高效 <span class="math display">\[
+\begin{align*}
+\rm Q, \rm K, \rm V &amp;= \rm XW_Q, \rm XW_K, \rm XW_V, \\  \rm O
+&amp;= \ softmax\big((\rm Q \rm K^\intercal) \odot \rm M \big) \rm V,
+%
+\end{align*}
+\]</span> where <span class="math inline">\(\rm X \in \R^{L \times
+d}\)</span>，<span class="math inline">\(W_Q, W_K, W_V \in \R^{d \times
+d}\)</span>， <span class="math inline">\(\rm M \in \{-\infty,1\}^{L
+\times L}\)</span> , <span class="math inline">\(\rm M_{ij}=1\)</span>
+if <span class="math inline">\(i\ge j\)</span> and <span
+class="math inline">\(\rm M_{ij}=-\infty\)</span> if <span
+class="math inline">\(i&lt;j\)</span>. (Here we assume a single
+attention head for simplicity.)</p></li>
+<li><p>inference：串行，kv cache <span class="math display">\[
+\begin{align*}
+q_t, \ k_t, \ v_t &amp;= x_t W_Q, \  x_t W_K, \ x_t W_V, \\ o_t &amp;=
+\frac{\sum_{i=1}^{t} \exp(q_t  k_i^\intercal)v_i}{\sum_{i =1} ^{t}
+\exp(q_t  k_i^\intercal)},
+\end{align*}
+\]</span></p></li>
+</ul></li>
+<li><p><strong>Linear attention</strong></p></li>
 </ul>
-<p><img src="https://s2.loli.net/2023/07/22/5x8X2ECartFBiSk.png" srcset="/img/loading.gif" lazyload style="zoom: 80%;" /></p>
-<h2 id="模型结构">模型结构</h2>
-<h3 id="怎样将图像和文本一起输入llm">怎样将图像和文本一起输入LLM？</h3>
-<p>将图像数据从2D转化为1D，以输入Transformer，作者除采用ViT中常见的patch_embedding（一个预训练的Resnet）外，还用一个Transformer模块对image
-patch的token数量进行了压缩。</p>
-<p>压缩的方法就是引入一个Perceiver
-Resampler模块，核心是做attention，如下图所示，用R个可学习的token作为Query，图像编码<span
-class="math inline">\(X_f\)</span>和R个token的拼接作为K和V（拼接后效果略好），这样attention下来输出也是R个token,从而将图像token数量压缩到R个。</p>
-<p><img
-src="https://pic1.zhimg.com/80/v2-b5a9c3d3bccdfe01aa066408a9db057c_720w.webp" srcset="/img/loading.gif" lazyload /></p>
-<h3 id="如何利用预训练的llm">如何利用预训练的LLM？</h3>
-<p>作者从一个预训练好的70B语言模型Chinchilla开始加入图像信息，考虑到保留之前LM学到的知识，训练时需要把LM的参数冻住，因此提出了<strong>Gated
-Cross attention</strong>机制来融合图像和文本。</p>
-<p>具体来说，还是利用attention机制，如下图所示，把文本编码当作Q，图像编码当作K和V，这样输出的维度还是跟之前文本的一样。之后还是正常过FFW。同时为了提升稳定性和效果，在attention和FFW之后都增加了tanh门控，先开始是0，之后逐步增加。</p>
-<p><strong>这个过程可以理解为以文本输入为载体，将图像信息嵌入到文本信息之中</strong></p>
+<p>replace <span class="math inline">\(\exp(q_t k_i^\intercal)\)</span>
+with a kernel <span class="math inline">\(k(x, y) = \langle\phi(x),
+\phi(y)\rangle\)</span>)，since we have: <span class="math display">\[
+  \begin{align*}
+   o_t &amp;= \frac{\sum_{i=1}^{ t}\phi(q_t)\phi(k_i)^\intercal
+v_i}{\sum_{i=1}^{t} \phi(q_t)\phi(k_i)^\intercal  }  
+   = \frac{\phi(q_t)   \sum_{i=1}^{t}\phi(k_i)^\intercal v_i}{\phi(q_t)
+\sum_{i=1}^{t}\phi(k_i)^\intercal}.
+   %
+  \end{align*}
+  \]</span> Letting <span class="math inline">\(\rm
+S_t=\sum_{i=1}^{t}\phi(k_i)^\intercal v_i\)</span> and <span
+class="math inline">\(z_t=\sum_{i=1}^{t}\phi(k_i)^\intercal\)</span>
+where <span class="math inline">\(\rm S_t \in \mathbb{R}^{d\times d},
+z_t \in \mathbb{R}^{d\times 1}\)</span>, we can rewrite the above as an
+RNN: <span class="math display">\[
+  \begin{align*}
+  \rm S_t = \rm S_{t-1} + \phi(k_t)^\intercal v_t, \ z_t = z_{t-1} +
+\phi(k_t)^\intercal, \ o_t = \frac{\phi(q_t) \rm S_t}{ \phi(q_t) z_t}.
+  \end{align*}
+  \]</span> recent work has found that a linear kernel (i.e., setting
+<span class="math display">\[\phi\]</span> to be the identity) without a
+normalizer works well in practice: <span class="math display">\[
+  \begin{align}
+  &amp; \rm S_t = \rm S_{t-1} + k_t^\intercal v_t, \quad o_t = q_t \rm
+S_t.
+  \end{align}
+  \]</span></p>
+<ul>
+<li><p><strong>分块并行形式</strong></p>
+<p>for <span class="math inline">\(i \in [0, 1, \dots
+\frac{L}{C}-1]\)</span>： <span class="math display">\[
+\rm S_{[i+1]} = \rm S_{[i]} + \underbrace{\sum_{j=iC + 1}^{(i+1)C}
+k_{j}^\intercal v_{j}}_{\rm K^\intercal_{[i]}\rm V_{[i]}} \quad
+\hspace{1mm} \in \mathbb{R}^{d\times d}.
+\]</span></p>
+<p><span class="math display">\[
+\rm O_{[i+1]} = \underbrace{\rm Q_{[i+1]}\rm
+S_{[i]}}_{\text{inter-chunk}: \rm O^\text{inter}_{[i+1]}} +
+\underbrace{\big((\rm Q_{[i+1]}\rm K_{[i+1]}^{\intercal})\odot\rm
+M\big)\rm V_{[i+1]}}_{\text{intra-chunk}: \rm O^{\text{intra}}_{[i+1]}},
+\]</span></p>
+<p>算法流程如下：</p>
 <figure>
-<img
-src="https://pic3.zhimg.com/80/v2-76e0ce3eb141ce5512a2e5af441221e2_720w.webp" srcset="/img/loading.gif" lazyload
-alt="y: visually informed language features" />
-<figcaption aria-hidden="true">y: visually informed language
-features</figcaption>
+<img src="https://s2.loli.net/2024/06/06/y9MPioW3N1UsndO.png" srcset="/img/loading.gif" lazyload
+alt="image.png" />
+<figcaption aria-hidden="true">image.png</figcaption>
+</figure></li>
+</ul>
+<h2 id="backward">Backward</h2>
+<p><img src="https://s2.loli.net/2024/06/06/BfCuxnYrzpHZ4JV.png" srcset="/img/loading.gif" lazyload
+alt="2024-06-06 163230.png" /> <span class="math display">\[
+\rm O = \rm Q_{[n]} \rm S +(\rm Q_{[n]} \rm K_{[n]}^\intercal \odot\rm
+M)\rm V_{[n]}
+\]</span></p>
+<p><span class="math display">\[
+\rm S = \rm S + \rm K_{[n]}^\intercal \rm V_{[n]}
+\]</span></p>
+<p><strong>输入</strong>：<span class="math display">\[\nabla
+O\]</span>, <strong>输出</strong>：<span class="math display">\[\nabla
+Q,\]</span><span class="math display">\[\nabla K\]</span>,<span
+class="math display">\[\nabla V\]</span></p>
+<p><strong>S</strong>, <strong>Q</strong>, <strong>K</strong>,
+<strong>V</strong>均有两个输出节点（即图中有两个向外的箭头），因此它们的梯度均由两部分构成：</p>
+<ul>
+<li><p><strong>S</strong>:</p>
+<p><font color=red>
+<strong><em>引理1</em></strong>： </font><strong>Y、A、X、B</strong>均为矩阵，若<strong>Y</strong>=<strong>AXB</strong>，则<span
+class="math display">\[\nabla X = A^\intercal \nabla Y
+B^\intercal\]</span></p>
+<p>根据该引理，我们有：</p>
+<p><span class="math display">\[\nabla S_{①} \ = \rm Q_{[n]}^\intercal
+\nabla O\]</span></p>
+<p><span class="math display">\[\nabla S_{②} \ = \nabla
+S^{&#39;}(下一级S的梯度)\]</span></p>
+<p><span class="math display">\[\nabla S = \nabla S_{①} + \nabla S_{②} \
+= \rm Q_{[n]}^\intercal \nabla O + \nabla S\]</span></p></li>
+<li><p><strong>Q</strong>:</p>
+<p><span class="math display">\[\nabla Q_{③} \ = \nabla O \ \rm
+S^\intercal\]</span></p>
+<p><font color=red> <strong><em>引理2</em></strong>：
+</font>矩阵链式求导的一般方法：借助矩阵的迹（trace）运算。</p>
+<p>迹的定义：方阵的主对角线元素之和。</p>
+<p>由迹的定义易得：</p>
+<ul>
+<li>标量套上迹：<span class="math display">\[a = tr(a)\]</span></li>
+<li>转置： <span class="math display">\[tr(A) = tr(A^T)\]</span></li>
+<li>线性： <span class="math display">\[tr(A±B) = tr(A) +
+tr(B)\]</span></li>
+<li>矩阵乘法交换律：<span class="math display">\[tr(AB)=tr(BA) =
+\sum_{i,j}A_{ij}B_{ij}^T = \sum_{i,j}A_{ij}B_{ij}\]</span> ，即A和<span
+class="math display">\[B^T\]</span>（或B和<span
+class="math display">\[A^T\]</span>）的内积</li>
+<li>逐元素相乘：<span class="math display">\[tr(A^T(B \odot C)) = tr((A
+\odot B)^T C) = \sum_{i,j}A_{ij}B_{ij}C_{ij}\]</span></li>
+</ul>
+<p><font color=red> <strong>矩阵链式求导</strong>： </font><span
+class="math display">\[df = tr(\nabla Y^T dY) = tr(\nabla X^T
+dX)\]</span></p>
+<p>故有：<span class="math display">\[tr(\nabla O^T dO) \\=
+tr\big(\nabla O^T (dQ_{[n]}K_{[n]}^T \odot M)V_{[n]}\big)
+\\=tr\big(V_{[n]}\nabla O^T (dQ_{[n]}K_{[n]}^T \odot
+M)\big)\\=tr\big((\nabla OV_{[n]}^T \odot
+M)^TdQ_{[n]}K_{[n]}^T\big)\\=tr\big(K_{[n]}^T(\nabla OV_{[n]}^T \odot
+M)^TdQ_{[n]}\big)\\=tr\big(((\nabla OV_{[n]}^T \odot
+M)K_{[n]})^TdQ_{[n]}\big)\]</span></p>
+<p>上述推导过程主要使用了迹的矩阵乘法交换律和逐元素相乘律，对照链式求导公式可得，<span
+class="math display">\[\nabla Q_{④} = (\nabla OV_{[n]}^T \odot
+M)K_{[n]}\]</span></p>
+<p><span class="math display">\[\nabla Q_{[n]} = \nabla Q_{③} + \nabla
+Q_{④} \ = \nabla O \ \rm S^\intercal + (\nabla OV_{[n]}^T \odot
+M)K_{[n]}\]</span></p></li>
+<li><p><strong>K、V</strong>：类似方法可得：</p>
+<p><span class="math display">\[\nabla K_{[n]} = \nabla K_{⑤} + \nabla
+K_{⑥} \ = V_{[n]}\nabla S^T + (V_{[n]}\nabla O^T \odot
+M^T)Q_{[n]}\]</span></p>
+<p><span class="math display">\[\nabla V_{[n]} = \nabla V_{⑦} + \nabla
+V_{⑧} \ = K_{[n]}\nabla S + (\rm Q_{[n]} \rm K_{[n]}^T \odot\rm M)^T
+\nabla O\]</span></p></li>
+</ul>
+<p>具体算法流程：</p>
+<figure>
+<img src="https://s2.loli.net/2024/06/06/CPlvUVz6GnQhuas.png" srcset="/img/loading.gif" lazyload
+alt="image.png" />
+<figcaption aria-hidden="true">image.png</figcaption>
 </figure>
-<p>但为了减少参数量，这个机制不一定每层都有（但每层都添加效果更好），具体增加的策略如下：</p>
-<p><img
-src="https://pic2.zhimg.com/80/v2-560954ec7610438b74d788c7ade53449_720w.webp" srcset="/img/loading.gif" lazyload /></p>
-<p>同时为了减少不相关的图像噪声，提高训练的稳定性，增加mask策略使得在cross-attention时每段文字只能关注到它之前的一个图像。</p>
-<p>但cross-attention之后的self-attention还是保持LM的causal
-attention，可以保证在预测输出时会关注到以前所有的文字和图像。</p>
-<h3 id="如何构造训练数据">如何构造训练数据？</h3>
-<p>需要的训练数据为图像文本对，在大量网页上爬取得到M3W数据集。</p>
+<h2 id="参考文献">参考文献：</h2>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/24709748">矩阵求导术（上） -
+知乎 (zhihu.com)</a></li>
+<li>GLA：<a target="_blank" rel="noopener" href="https://arxiv.org/abs/2312.06635">paper</a>, <a
+target="_blank" rel="noopener" href="https://github.com/berlino/gated_linear_attention">code</a></li>
+</ul>
 
                 
               </div>
@@ -327,9 +453,7 @@ attention，可以保证在预测输出时会关注到以前所有的文字和�
     <div class="post-meta">
       <i class="iconfont icon-tags"></i>
       
-        <a href="/tags/%E5%A4%9A%E6%A8%A1%E6%80%81/" class="print-no-link">#多模态</a>
-      
-        <a href="/tags/gpt-4/" class="print-no-link">#gpt-4</a>
+        <a href="/tags/Triton/" class="print-no-link">#Triton</a>
       
     </div>
   
@@ -341,8 +465,8 @@ attention，可以保证在预测输出时会关注到以前所有的文字和�
 
   <div class="license-box my-3">
     <div class="license-title">
-      <div>论文笔记4 - Flamingo</div>
-      <div>https://robert-zwr.github.io/2023/07/19/论文笔记4-Flamingo/</div>
+      <div>矩阵求导术</div>
+      <div>https://robert-zwr.github.io/2024/06/05/矩阵求导术/</div>
     </div>
     <div class="license-meta">
       
@@ -354,7 +478,7 @@ attention，可以保证在预测输出时会关注到以前所有的文字和�
       
         <div class="license-meta-item license-meta-date">
           <div>Posted on</div>
-          <div>July 19, 2023</div>
+          <div>June 5, 2024</div>
         </div>
       
       
@@ -386,18 +510,12 @@ attention，可以保证在预测输出时会关注到以前所有的文字和�
                   <article class="post-prev col-6">
                     
                     
-                      <a href="/2024/06/05/%E7%9F%A9%E9%98%B5%E6%B1%82%E5%AF%BC%E6%9C%AF/" title="矩阵求导术">
-                        <i class="iconfont icon-arrowleft"></i>
-                        <span class="hidden-mobile">矩阵求导术</span>
-                        <span class="visible-mobile">Previous</span>
-                      </a>
-                    
                   </article>
                   <article class="post-next col-6">
                     
                     
-                      <a href="/2023/07/19/%E8%AE%BA%E6%96%87%E7%AC%94%E8%AE%B03-LLaVA/" title="论文笔记3 - LLaVA">
-                        <span class="hidden-mobile">论文笔记3 - LLaVA</span>
+                      <a href="/2023/07/19/%E8%AE%BA%E6%96%87%E7%AC%94%E8%AE%B04-Flamingo/" title="论文笔记4 - Flamingo">
+                        <span class="hidden-mobile">论文笔记4 - Flamingo</span>
                         <span class="visible-mobile">Next</span>
                         <i class="iconfont icon-arrowright"></i>
                       </a>
