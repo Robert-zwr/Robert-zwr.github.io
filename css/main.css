@@ -1,3 +1,7 @@
+mjx-mspace {
+  display: flex;
+}
+
 .anchorjs-link {
   text-decoration: none !important;
   transition: opacity 0.2s ease-in-out;

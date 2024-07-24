@@ -16,26 +16,26 @@
   <meta name="author" content="Robert-zwr">
   <meta name="keywords" content="">
   
-    <meta name="description" content="自定义Triton算子，需要在实现反向传播时给出相应的梯度计算方法，梯度表达式的推导过程涉及矩阵求导的运算法则。 下面以flash-linear-attention为例，介绍一下flash-linear-attention的实现方法，顺便推导一下梯度的计算过程。 Forward  标准attention:  train：并行，高效 \[ \begin{align*} \rm Q,">
+    <meta name="description" content="推测解码（Speculative Decoding，也有人译为“投机采样”，个人认为意译为“拒绝采样”更好一些）是Google[1]和DeepMind[2]在2022年同时发现的大模型推理加速方法。它可以在生成效果无损的前提下，获得3倍以上的加速比。GPT-4泄密报告也提到OpenAI线上模型推理使用了它。  基本思想：小模型打草稿，大模型纠正  打草稿：Speculative Dec">
 <meta property="og:type" content="article">
-<meta property="og:title" content="矩阵求导术">
-<meta property="og:url" content="https://robert-zwr.github.io/2024/06/05/%E7%9F%A9%E9%98%B5%E6%B1%82%E5%AF%BC%E6%9C%AF/index.html">
+<meta property="og:title" content="3倍加速LLM推理——推测解码（Speculative Decoding）">
+<meta property="og:url" content="https://robert-zwr.github.io/2024/07/24/%E6%8E%A8%E6%B5%8B%E8%A7%A3%E7%A0%81%EF%BC%88Speculative-Decoding%EF%BC%89/index.html">
 <meta property="og:site_name" content="Robert-zwr&#39;s Blog">
-<meta property="og:description" content="自定义Triton算子，需要在实现反向传播时给出相应的梯度计算方法，梯度表达式的推导过程涉及矩阵求导的运算法则。 下面以flash-linear-attention为例，介绍一下flash-linear-attention的实现方法，顺便推导一下梯度的计算过程。 Forward  标准attention:  train：并行，高效 \[ \begin{align*} \rm Q,">
+<meta property="og:description" content="推测解码（Speculative Decoding，也有人译为“投机采样”，个人认为意译为“拒绝采样”更好一些）是Google[1]和DeepMind[2]在2022年同时发现的大模型推理加速方法。它可以在生成效果无损的前提下，获得3倍以上的加速比。GPT-4泄密报告也提到OpenAI线上模型推理使用了它。  基本思想：小模型打草稿，大模型纠正  打草稿：Speculative Dec">
 <meta property="og:locale" content="en_US">
-<meta property="og:image" content="https://s2.loli.net/2024/06/06/y9MPioW3N1UsndO.png">
-<meta property="og:image" content="https://s2.loli.net/2024/06/06/BfCuxnYrzpHZ4JV.png">
-<meta property="og:image" content="https://s2.loli.net/2024/06/06/CPlvUVz6GnQhuas.png">
-<meta property="article:published_time" content="2024-06-05T12:57:48.000Z">
-<meta property="article:modified_time" content="2024-07-24T06:27:46.323Z">
+<meta property="og:image" content="https://pic2.zhimg.com/v2-f112b680339b4d6add939f6cae1b8be5_r.jpg">
+<meta property="og:image" content="https://robert-zwr.github.io/2024/07/24/images/figure1.png">
+<meta property="article:published_time" content="2024-07-24T06:41:49.000Z">
+<meta property="article:modified_time" content="2024-07-24T10:15:01.941Z">
 <meta property="article:author" content="Robert-zwr">
-<meta property="article:tag" content="Triton">
+<meta property="article:tag" content="LLM">
+<meta property="article:tag" content="HPC">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://s2.loli.net/2024/06/06/y9MPioW3N1UsndO.png">
+<meta name="twitter:image" content="https://pic2.zhimg.com/v2-f112b680339b4d6add939f6cae1b8be5_r.jpg">
   
   
   
-  <title>矩阵求导术 - Robert-zwr&#39;s Blog</title>
+  <title>3倍加速LLM推理——推测解码（Speculative Decoding） - Robert-zwr&#39;s Blog</title>
 
   <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
 
@@ -201,7 +201,7 @@
       <div class="banner-text text-center fade-in-up">
         <div class="h2">
           
-            <span id="subtitle" data-typed-text="矩阵求导术"></span>
+            <span id="subtitle" data-typed-text="3倍加速LLM推理——推测解码（Speculative Decoding）"></span>
           
         </div>
 
@@ -212,8 +212,8 @@
     
       <span class="post-meta">
         <i class="iconfont icon-date-fill" aria-hidden="true"></i>
-        <time datetime="2024-06-05 20:57" pubdate>
-          June 5, 2024 pm
+        <time datetime="2024-07-24 14:41" pubdate>
+          July 24, 2024 pm
         </time>
       </span>
     
@@ -224,7 +224,7 @@
       <span class="post-meta mr-2">
         <i class="iconfont icon-chart"></i>
         
-          3.6k words
+          2.3k words
         
       </span>
     
@@ -235,7 +235,7 @@
         
         
         
-          31 mins
+          20 mins
         
       </span>
     
@@ -272,175 +272,100 @@
       <div class="container nopadding-x-md" id="board-ctn">
         <div id="board">
           <article class="post-content mx-auto">
-            <h1 id="seo-header">矩阵求导术</h1>
+            <h1 id="seo-header">3倍加速LLM推理——推测解码（Speculative Decoding）</h1>
             
             
               <div class="markdown-body">
                 
-                <p>自定义Triton算子，需要在实现反向传播时给出相应的梯度计算方法，梯度表达式的推导过程涉及矩阵求导的运算法则。</p>
-<p>下面以<strong><a
-target="_blank" rel="noopener" href="https://github.com/sustcsonglin/flash-linear-attention">flash-linear-attention</a></strong>为例，介绍一下flash-linear-attention的实现方法，顺便推导一下梯度的计算过程。</p>
-<h2 id="forward">Forward</h2>
+                <p>推测解码（Speculative
+Decoding，也有人译为“投机采样”，个人认为意译为“拒绝采样”更好一些）是Google[1]和DeepMind[2]在2022年同时发现的大模型推理加速方法。它可以在生成效果<strong>无损</strong>的前提下，获得<strong>3倍</strong>以上的<strong>加速</strong>比。GPT-4泄密报告也提到OpenAI线上模型推理使用了它。</p>
+<p><img src="https://pic2.zhimg.com/v2-f112b680339b4d6add939f6cae1b8be5_r.jpg" srcset="/img/loading.gif" lazyload alt="preview" style="zoom:33%;" /></p>
+<h2
+id="基本思想小模型打草稿大模型纠正">基本思想：小模型打草稿，大模型纠正</h2>
 <ul>
-<li><p><strong>标准attention:</strong></p>
-<ul>
-<li><p>train：并行，高效 <span class="math display">\[
-\begin{align*}
-\rm Q, \rm K, \rm V &amp;= \rm XW_Q, \rm XW_K, \rm XW_V, \\  \rm O
-&amp;= \ softmax\big((\rm Q \rm K^\intercal) \odot \rm M \big) \rm V,
-%
-\end{align*}
-\]</span> where <span class="math inline">\(\rm X \in R^{L \times
-d}\)</span>，<span class="math inline">\(W_Q, W_K, W_V \in R^{d \times
-d}\)</span>， <span class="math inline">\(\rm M \in \{-\infty,1\}^{L
-\times L}\)</span> , <span class="math inline">\(\rm M_{ij}=1\)</span>
-if <span class="math inline">\(i\ge j\)</span> and <span
-class="math inline">\(\rm M_{ij}=-\infty\)</span> if <span
-class="math inline">\(i&lt;j\)</span>. (Here we assume a single
-attention head for simplicity.)</p></li>
-<li><p>inference：串行，kv cache <span class="math display">\[
-\begin{align*}
-q_t, \ k_t, \ v_t &amp;= x_t W_Q, \  x_t W_K, \ x_t W_V, \\ o_t &amp;=
-\frac{\sum_{i=1}^{t} \exp(q_t  k_i^\intercal)v_i}{\sum_{i =1} ^{t}
-\exp(q_t  k_i^\intercal)},
-\end{align*}
-\]</span></p></li>
-</ul></li>
-<li><p><strong>Linear attention</strong></p></li>
+<li><strong>打草稿</strong>：Speculative
+Decoding引入了一个与原本LLM结构相同但参数量小得多的近似模型。推理过程中，由小模型先用自回归的方法串行生成<span
+class="math inline">\(\gamma\)</span>个token；</li>
+<li><strong>纠正</strong>：再将这<span
+class="math inline">\(\gamma\)</span>个token一起送入大模型中进行推理（验证），对于小模型输出的某个token
+<span class="math inline">\(x_{i}\)</span>，若大模型预测的概率<span
+class="math inline">\(p(x_i)\)</span>大于小模型预测的概率<span
+class="math inline">\(q(x_i)\)</span>,则接受<span
+class="math inline">\(x_i\)</span>作为当前位置的输出；否则，大模型就以<span
+class="math inline">\(1-\frac{p(x_i)}{q(x_i)}\)</span>的概率概率拒绝<span
+class="math inline">\(x_i\)</span>作为当前位置的输出，并在<span
+class="math inline">\(p(x)&gt;q(x)\)</span>的区域重新采样<span
+class="math inline">\(x_j\)</span>作为纠正后的输出。</li>
 </ul>
-<p>replace <span class="math inline">\(\exp(q_t k_i^\intercal)\)</span>
-with a kernel <span class="math inline">\(k(x, y) = \langle\phi(x),
-\phi(y)\rangle\)</span>)，since we have: <span class="math display">\[
-  \begin{align*}
-   o_t &amp;= \frac{\sum_{i=1}^{ t}\phi(q_t)\phi(k_i)^\intercal
-v_i}{\sum_{i=1}^{t} \phi(q_t)\phi(k_i)^\intercal  }  
-   = \frac{\phi(q_t)   \sum_{i=1}^{t}\phi(k_i)^\intercal v_i}{\phi(q_t)
-\sum_{i=1}^{t}\phi(k_i)^\intercal}.
-   %
-  \end{align*}
-  \]</span> Letting <span class="math inline">\(\rm
-S_t=\sum_{i=1}^{t}\phi(k_i)^\intercal v_i\)</span> and <span
-class="math inline">\(z_t=\sum_{i=1}^{t}\phi(k_i)^\intercal\)</span>
-where <span class="math inline">\(\rm S_t \in \mathbb{R}^{d\times d},
-z_t \in \mathbb{R}^{d\times 1}\)</span>, we can rewrite the above as an
-RNN: <span class="math display">\[
-  \begin{align*}
-  \rm S_t = \rm S_{t-1} + \phi(k_t)^\intercal v_t, \ z_t = z_{t-1} +
-\phi(k_t)^\intercal, \ o_t = \frac{\phi(q_t) \rm S_t}{ \phi(q_t) z_t}.
-  \end{align*}
-  \]</span> recent work has found that a linear kernel (i.e., setting
-<span class="math inline">\(\phi\)</span> to be the identity) without a
-normalizer works well in practice: <span class="math display">\[
-  \begin{align}
-  &amp; \rm S_t = \rm S_{t-1} + k_t^\intercal v_t, \quad o_t = q_t \rm
-S_t.
-  \end{align}
-  \]</span></p>
+<p><img src="../images/figure1.png" srcset="/img/loading.gif" lazyload /></p>
+<h2 id="加速原理">加速原理：</h2>
+<p>在Speculative
+Decoding中，串行输出token的任务主要由小模型承担了，大模型的“纠正”过程由于可以一次并行处理<span
+class="math inline">\(\gamma\)</span>个token，前向推理的次数大大减少。（与自回归的LLM可以高效并行训练的原理相同）</p>
+<h2
+id="无偏估计为什么说speculative-decoding的加速过程是无损的">无偏估计：为什么说Speculative
+Decoding的加速过程是“无损”的</h2>
+<p>论文[1]在附录A1.1中证明了通过从<span
+class="math inline">\(p(x)\)</span>和<span
+class="math inline">\(q(x)\)</span>进行Speculative
+Decoding所得到的token的分布与仅从<span
+class="math inline">\(p(x)\)</span>进行采样所得到的token的分布是相同的。有趣的是，这一结论对于任意分布的<span
+class="math inline">\(p(x)\)</span>和<span
+class="math inline">\(q(x)\)</span>均成立。</p>
+<p><font color=red> <strong>前提</strong>： </font></p>
+<p>Speculative Decoding的过程以以下方法进行：</p>
 <ul>
-<li><p><strong>分块并行形式</strong></p>
-<p>for <span class="math inline">\(i \in [0, 1, \dots
-\frac{L}{C}-1]\)</span>： <span class="math display">\[
-\rm S_{[i+1]} = \rm S_{[i]} + \underbrace{\sum_{j=iC + 1}^{(i+1)C}
-k_{j}^\intercal v_{j}}_{\rm K^\intercal_{[i]}\rm V_{[i]}} \quad
-\hspace{1mm} \in \mathbb{R}^{d\times d}.
-\]</span></p>
-<p><span class="math display">\[
-\rm O_{[i+1]} = \underbrace{\rm Q_{[i+1]}\rm
-S_{[i]}}_{\text{inter-chunk}: \rm O^\text{inter}_{[i+1]}} +
-\underbrace{\big((\rm Q_{[i+1]}\rm K_{[i+1]}^{\intercal})\odot\rm
-M\big)\rm V_{[i+1]}}_{\text{intra-chunk}: \rm O^{\text{intra}}_{[i+1]}},
-\]</span></p>
-<p>算法流程如下：</p>
-<figure>
-<img src="https://s2.loli.net/2024/06/06/y9MPioW3N1UsndO.png" srcset="/img/loading.gif" lazyload
-alt="image.png" />
-<figcaption aria-hidden="true">image.png</figcaption>
-</figure></li>
+<li><p>若<span
+class="math inline">\(p(x&#39;)&gt;q(x&#39;)\)</span>,则模型以1的概率接受<span
+class="math inline">\(x&#39;\)</span>作为最终解码结果；若<span
+class="math inline">\(p(x&#39;)&lt;q(x&#39;)\)</span>,则模型以<span
+class="math inline">\(\frac{p(x&#39;)}{q(x&#39;)}\)</span>的概率接受<span
+class="math inline">\(x&#39;\)</span>作为最终解码结果；即小模型输出的<span
+class="math inline">\(x&#39;\)</span>被接受的概率为<span
+class="math inline">\(\min(1,\frac{p(x&#39;)}{q(x&#39;)})\)</span>。</p></li>
+<li><p>若小模型输出被拒绝，则以归一化后的<span
+class="math inline">\(p(x)-q(x)\)</span>作为概率分布（记作<span
+class="math inline">\(p&#39;(x)\)</span>），在<span
+class="math inline">\(p(x)&gt;q(x)\)</span>的区域重新采样得到作为纠正后的输出。有<span
+class="math inline">\(p^{\prime}(x)=\operatorname{norm}(\max (0,
+p(x)-q(x)))=\frac{p(x)-\min (q(x),
+p(x))}{\sum_{x^{\prime}}\left(p\left(x^{\prime}\right)-\min
+\left(q\left(x^{\prime}\right),
+p\left(x^{\prime}\right)\right)\right)}=\frac{p(x)-\min (q(x),
+p(x))}{1-\sum_{x^{\prime}}\min \left(q\left(x^{\prime}\right),
+p\left(x^{\prime}\right)\right)}\)</span></p></li>
 </ul>
-<h2 id="backward">Backward</h2>
-<p><img src="https://s2.loli.net/2024/06/06/BfCuxnYrzpHZ4JV.png" srcset="/img/loading.gif" lazyload
-alt="2024-06-06 163230.png" /> <span class="math display">\[
-\rm O = \rm Q_{[n]} \rm S +(\rm Q_{[n]} \rm K_{[n]}^\intercal \odot\rm
-M)\rm V_{[n]}
-\]</span></p>
-<p><span class="math display">\[
-\rm S = \rm S + \rm K_{[n]}^\intercal \rm V_{[n]}
-\]</span></p>
-<p><strong>输入</strong>：<span class="math inline">\(\nabla O\)</span>,
-<strong>输出</strong>：<span class="math inline">\(\nabla
-Q\)</span>,<span class="math inline">\(\nabla K\)</span>,<span
-class="math inline">\(\nabla V\)</span></p>
-<p><strong>S</strong>, <strong>Q</strong>, <strong>K</strong>,
-<strong>V</strong>均有两个输出节点（即图中有两个向外的箭头），因此它们的梯度均由两部分构成：</p>
-<ul>
-<li><p><strong>S</strong>:</p>
-<p><font color=red>
-<strong><em>引理1</em></strong>： </font><strong>Y、A、X、B</strong>均为矩阵，若<strong>Y</strong>=<strong>AXB</strong>，则<span
-class="math display">\[\nabla X = A^\intercal \nabla Y
-B^\intercal\]</span></p>
-<p>根据该引理，我们有：</p>
-<p><span class="math display">\[\nabla S_{①} \ = \rm Q_{[n]}^\intercal
-\nabla O\]</span></p>
-<p><span class="math display">\[\nabla S_{②} \ = \nabla
-S^{&#39;}(下一级S的梯度)\]</span></p>
-<p><span class="math display">\[\nabla S = \nabla S_{①} + \nabla S_{②} \
-= \rm Q_{[n]}^\intercal \nabla O + \nabla S\]</span></p></li>
-<li><p><strong>Q</strong>:</p>
-<p><span class="math inline">\(\nabla Q_{③} \ = \nabla O \ \rm
-S^\intercal\)</span></p>
-<p><font color=red> <strong><em>引理2</em></strong>：
-</font>矩阵链式求导的一般方法：借助矩阵的迹（trace）运算。</p>
-<p>迹的定义：方阵的主对角线元素之和。</p>
-<p>由迹的定义易得：</p>
-<ul>
-<li>标量套上迹：<span class="math inline">\(a = tr(a)\)</span></li>
-<li>转置： <span class="math inline">\(tr(A) = tr(A^T)\)</span></li>
-<li>线性： <span class="math inline">\(tr(A±B) = tr(A) +
-tr(B)\)</span></li>
-<li>矩阵乘法交换律：<span class="math inline">\(tr(AB)=tr(BA) =
-\sum_{i,j}A_{ij}B_{ij}^T = \sum_{i,j}A_{ij}B_{ij}\)</span> ，即A和<span
-class="math inline">\(B^T\)</span>（或B和<span
-class="math inline">\(A^T\)</span>）的内积</li>
-<li>逐元素相乘：<span class="math inline">\(tr(A^T(B \odot C)) = tr((A
-\odot B)^T C) = \sum_{i,j}A_{ij}B_{ij}C_{ij}\)</span></li>
-</ul>
-<p><font color=red> <strong>矩阵链式求导</strong>： </font><span
-class="math inline">\(df = tr(\nabla Y^T dY) = tr(\nabla X^T
-dX)\)</span></p>
-<p>故有：<span class="math display">\[tr(\nabla O^T dO) \\=
-tr\big(\nabla O^T (dQ_{[n]}K_{[n]}^T \odot M)V_{[n]}\big)
-\\=tr\big(V_{[n]}\nabla O^T (dQ_{[n]}K_{[n]}^T \odot
-M)\big)\\=tr\big((\nabla OV_{[n]}^T \odot
-M)^TdQ_{[n]}K_{[n]}^T\big)\\=tr\big(K_{[n]}^T(\nabla OV_{[n]}^T \odot
-M)^TdQ_{[n]}\big)\\=tr\big(((\nabla OV_{[n]}^T \odot
-M)K_{[n]})^TdQ_{[n]}\big)\]</span></p>
-<p>上述推导过程主要使用了迹的矩阵乘法交换律和逐元素相乘律，对照链式求导公式可得，<span
-class="math display">\[\nabla Q_{④} = (\nabla OV_{[n]}^T \odot
-M)K_{[n]}\]</span></p>
-<p><span class="math display">\[\nabla Q_{[n]} = \nabla Q_{③} + \nabla
-Q_{④} \ = \nabla O \ \rm S^\intercal + (\nabla OV_{[n]}^T \odot
-M)K_{[n]}\]</span></p></li>
-<li><p><strong>K、V</strong>：类似方法可得：</p>
-<p><span class="math display">\[\nabla K_{[n]} = \nabla K_{⑤} + \nabla
-K_{⑥} \ = V_{[n]}\nabla S^T + (V_{[n]}\nabla O^T \odot
-M^T)Q_{[n]}\]</span></p>
-<p><span class="math display">\[\nabla V_{[n]} = \nabla V_{⑦} + \nabla
-V_{⑧} \ = K_{[n]}\nabla S + (\rm Q_{[n]} \rm K_{[n]}^T \odot\rm M)^T
-\nabla O\]</span></p></li>
-</ul>
-<p>具体算法流程：</p>
-<figure>
-<img src="https://s2.loli.net/2024/06/06/CPlvUVz6GnQhuas.png" srcset="/img/loading.gif" lazyload
-alt="image.png" />
-<figcaption aria-hidden="true">image.png</figcaption>
-</figure>
-<h2 id="参考文献">参考文献：</h2>
-<ul>
-<li><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/24709748">矩阵求导术（上） -
-知乎 (zhihu.com)</a></li>
-<li>GLA：<a target="_blank" rel="noopener" href="https://arxiv.org/abs/2312.06635">paper</a>, <a
-target="_blank" rel="noopener" href="https://github.com/berlino/gated_linear_attention">code</a></li>
-</ul>
+<p><font color=red> <strong>证明</strong>： </font></p>
+<p><span
+class="math inline">\(P\left(x=x^{\prime}\right)=P\left(\right.\)</span>
+guess accepted, <span
+class="math inline">\(\left.x=x^{\prime}\right)+P\left(\right.\)</span>
+guess rejected, <span
+class="math inline">\(\left.x=x^{\prime}\right)\)</span></p>
+<p>其中，</p>
+<p><span class="math inline">\(P\left(\right.\)</span> guess accepted,
+<span
+class="math inline">\(\left.x=x^{\prime}\right)=q\left(x^{\prime}\right)
+\min \left(1,
+\frac{p\left(x^{\prime}\right)}{q\left(x^{\prime}\right)}\right)=\min
+\left(q\left(x^{\prime}\right),
+p\left(x^{\prime}\right)\right)\)</span></p>
+<p>小模型的输出被接受的概率<span class="math inline">\(\beta=E_{x \sim
+q(x)} \begin{cases}1 &amp; q(x) \leq p(x) \\ \frac{p(x)}{q(x)} &amp;
+q(x)&gt;p(x)\end{cases}=E_{x \sim q(x)} \min \left(1,
+\frac{p(x)}{q(x)}\right)=\sum_{x&#39;} \min (p(x&#39;),
+q(x&#39;))\)</span>，代入<span
+class="math inline">\(p&#39;(x)\)</span>的表达式，有<span
+class="math inline">\(p&#39;(x)=\frac{p(x)-\min (q(x),
+p(x))}{1-\beta}\)</span></p>
+<p>则<span class="math inline">\(P\left(\right.\)</span> guess rejected,
+<span class="math inline">\(\left.x=x^{\prime}\right)=(1-\beta)
+p^{\prime}\left(x^{\prime}\right)=p\left(x^{\prime}\right)-\min
+\left(q\left(x^{\prime}\right),
+p\left(x^{\prime}\right)\right)\)</span></p>
+<p>故：<span
+class="math inline">\(P\left(x=x^{\prime}\right)=p(x&#39;)\)</span></p>
+<p>证毕，As desired!</p>
 
                 
               </div>
@@ -453,7 +378,9 @@ target="_blank" rel="noopener" href="https://github.com/berlino/gated_linear_att
     <div class="post-meta">
       <i class="iconfont icon-tags"></i>
       
-        <a href="/tags/Triton/" class="print-no-link">#Triton</a>
+        <a href="/tags/LLM/" class="print-no-link">#LLM</a>
+      
+        <a href="/tags/HPC/" class="print-no-link">#HPC</a>
       
     </div>
   
@@ -465,8 +392,8 @@ target="_blank" rel="noopener" href="https://github.com/berlino/gated_linear_att
 
   <div class="license-box my-3">
     <div class="license-title">
-      <div>矩阵求导术</div>
-      <div>https://robert-zwr.github.io/2024/06/05/矩阵求导术/</div>
+      <div>3倍加速LLM推理——推测解码（Speculative Decoding）</div>
+      <div>https://robert-zwr.github.io/2024/07/24/推测解码（Speculative-Decoding）/</div>
     </div>
     <div class="license-meta">
       
@@ -478,7 +405,7 @@ target="_blank" rel="noopener" href="https://github.com/berlino/gated_linear_att
       
         <div class="license-meta-item license-meta-date">
           <div>Posted on</div>
-          <div>June 5, 2024</div>
+          <div>July 24, 2024</div>
         </div>
       
       
@@ -510,18 +437,12 @@ target="_blank" rel="noopener" href="https://github.com/berlino/gated_linear_att
                   <article class="post-prev col-6">
                     
                     
-                      <a href="/2024/07/24/%E6%8E%A8%E6%B5%8B%E8%A7%A3%E7%A0%81%EF%BC%88Speculative-Decoding%EF%BC%89/" title="3倍加速LLM推理——推测解码（Speculative Decoding）">
-                        <i class="iconfont icon-arrowleft"></i>
-                        <span class="hidden-mobile">3倍加速LLM推理——推测解码（Speculative Decoding）</span>
-                        <span class="visible-mobile">Previous</span>
-                      </a>
-                    
                   </article>
                   <article class="post-next col-6">
                     
                     
-                      <a href="/2023/07/19/%E8%AE%BA%E6%96%87%E7%AC%94%E8%AE%B04-Flamingo/" title="论文笔记4 - Flamingo">
-                        <span class="hidden-mobile">论文笔记4 - Flamingo</span>
+                      <a href="/2024/06/05/%E7%9F%A9%E9%98%B5%E6%B1%82%E5%AF%BC%E6%9C%AF/" title="矩阵求导术">
+                        <span class="hidden-mobile">矩阵求导术</span>
                         <span class="visible-mobile">Next</span>
                         <i class="iconfont icon-arrowright"></i>
                       </a>
