@@ -19,14 +19,14 @@
     <meta name="description" content="推测解码（Speculative Decoding，也有人译为“投机采样”，个人认为意译为“拒绝采样”更好一些）是Google[1]和DeepMind[2]在2022年同时发现的大模型推理加速方法。它可以在生成效果无损的前提下，获得3倍以上的加速比。GPT-4泄密报告也提到OpenAI线上模型推理使用了它。  基本思想：小模型打草稿，大模型纠正  打草稿：Speculative Dec">
 <meta property="og:type" content="article">
 <meta property="og:title" content="3倍加速LLM推理——推测解码（Speculative Decoding）">
-<meta property="og:url" content="https://robert-zwr.github.io/2024/07/24/%E6%8E%A8%E6%B5%8B%E8%A7%A3%E7%A0%81%EF%BC%88Speculative-Decoding%EF%BC%89/index.html">
+<meta property="og:url" content="https://robert-zwr.github.io/2024/07/24/Speculative-Decoding/index.html">
 <meta property="og:site_name" content="Robert-zwr&#39;s Blog">
 <meta property="og:description" content="推测解码（Speculative Decoding，也有人译为“投机采样”，个人认为意译为“拒绝采样”更好一些）是Google[1]和DeepMind[2]在2022年同时发现的大模型推理加速方法。它可以在生成效果无损的前提下，获得3倍以上的加速比。GPT-4泄密报告也提到OpenAI线上模型推理使用了它。  基本思想：小模型打草稿，大模型纠正  打草稿：Speculative Dec">
 <meta property="og:locale" content="en_US">
 <meta property="og:image" content="https://pic2.zhimg.com/v2-f112b680339b4d6add939f6cae1b8be5_r.jpg">
-<meta property="og:image" content="https://robert-zwr.github.io/2024/07/24/images/figure1.png">
+<meta property="og:image" content="https://robert-zwr.github.io/2024/07/24/Speculative-Decoding/Speculative-Decoding/figure1.png">
 <meta property="article:published_time" content="2024-07-24T06:41:49.000Z">
-<meta property="article:modified_time" content="2024-07-24T10:15:01.941Z">
+<meta property="article:modified_time" content="2025-11-04T13:15:36.404Z">
 <meta property="article:author" content="Robert-zwr">
 <meta property="article:tag" content="LLM">
 <meta property="article:tag" content="HPC">
@@ -279,7 +279,7 @@
                 
                 <p>推测解码（Speculative
 Decoding，也有人译为“投机采样”，个人认为意译为“拒绝采样”更好一些）是Google[1]和DeepMind[2]在2022年同时发现的大模型推理加速方法。它可以在生成效果<strong>无损</strong>的前提下，获得<strong>3倍</strong>以上的<strong>加速</strong>比。GPT-4泄密报告也提到OpenAI线上模型推理使用了它。</p>
-<p><img src="https://pic2.zhimg.com/v2-f112b680339b4d6add939f6cae1b8be5_r.jpg" srcset="/img/loading.gif" lazyload alt="preview" style="zoom:33%;" /></p>
+<p><img src="https://pic2.zhimg.com/v2-f112b680339b4d6add939f6cae1b8be5_r.jpg" srcset="/img/loading.gif" lazyload style="zoom:33%;" /></p>
 <h2
 id="基本思想小模型打草稿大模型纠正">基本思想：小模型打草稿，大模型纠正</h2>
 <ul>
@@ -297,7 +297,7 @@ class="math inline">\(x_i\)</span>作为当前位置的输出，并在<span
 class="math inline">\(p(x)&gt;q(x)\)</span>的区域重新采样<span
 class="math inline">\(x_j\)</span>作为纠正后的输出。</li>
 </ul>
-<p><img src="../images/figure1.png" srcset="/img/loading.gif" lazyload /></p>
+<p><img src="Speculative-Decoding/figure1.png" srcset="/img/loading.gif" lazyload /></p>
 <h2 id="加速原理">加速原理：</h2>
 <p>在Speculative
 Decoding中，串行输出token的任务主要由小模型承担了，大模型的“纠正”过程由于可以一次并行处理<span
@@ -393,7 +393,7 @@ class="math inline">\(P\left(x=x^{\prime}\right)=p(x&#39;)\)</span></p>
   <div class="license-box my-3">
     <div class="license-title">
       <div>3倍加速LLM推理——推测解码（Speculative Decoding）</div>
-      <div>https://robert-zwr.github.io/2024/07/24/推测解码（Speculative-Decoding）/</div>
+      <div>https://robert-zwr.github.io/2024/07/24/Speculative-Decoding/</div>
     </div>
     <div class="license-meta">
       
